@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS v2 - Boss Edition</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue: #00d4ff;
+    --green: #00ff88;
+    --orange: #ff9900;
+    --red: #ff4444;
+    --dark: #020b18;
+    --glow: 0 0 20px #00d4ff88;
+    --glow-green: 0 0 20px #00ff8888;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: #010810;
+    color: var(--blue);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+  body::before {
+    content:'';
+    position:fixed;
+    inset:0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+    background-size: 35px 35px;
+    pointer-events:none;
+    z-index:0;
+  }
+  .container {
+    position:relative;
+    z-index:1;
+    width:100%;
+    max-width:820px;
+    padding:16px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:16px;
+  }
+
+  /* HEADER */
+  .header { text-align:center; padding-top:12px; }
+  .header h1 {
+    font-family:'Orbitron',monospace;
+    font-size:3rem;
+    font-weight:900;
+    letter-spacing:0.35em;
+    color:var(--blue);
+    text-shadow: 0 0 30px #00d4ffcc, 0 0 60px #00d4ff66;
+    animation: titlePulse 3s ease-in-out infinite;
+  }
+  .header .sub { font-size:0.75rem; letter-spacing:0.25em; color:#00d4ff55; margin-top:2px; }
+  @keyframes titlePulse {
+    0%,100%{text-shadow:0 0 20px #00d4ff88,0 0 40px #00d4ff44;}
+    50%{text-shadow:0 0 40px #00d4ffdd,0 0 80px #00d4ff88;}
+  }
+
+  /* RING */
+  .ring-wrap { position:relative; width:160px; height:160px; }
+  .ring-svg { width:100%; height:100%; animation:spin 10s linear infinite; }
+  .ring-svg.r2 { position:absolute;top:0;left:0; animation:spin 6s linear infinite reverse; }
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  .ring-center {
+    position:absolute;inset:0;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:2px;
+  }
+  .ring-icon { font-size:2.2rem; filter:drop-shadow(0 0 8px #00d4ff); }
+  .ring-label {
+    font-family:'Orbitron',monospace;
+    font-size:0.5rem;
+    letter-spacing:0.15em;
+    color:#00d4ff88;
+  }
+
+  /* STATUS */
+  .status-bar {
+    display:flex;align-items:center;gap:8px;
+    padding:7px 18px;
+    border:1px solid #00d4ff22;
+    border-radius:30px;
+    background:#00d4ff08;
+    font-size:0.82rem;
+    letter-spacing:0.08em;
+  }
+  .dot { width:8px;height:8px;border-radius:50%;background:#333;transition:all 0.4s; }
+  .dot.active{background:#00ff88;box-shadow:0 0 10px #00ff88;animation:blink 1.5s infinite;}
+  .dot.listening{background:#ff6600;box-shadow:0 0 10px #ff6600;animation:blink 0.4s infinite;}
+  .dot.sleeping{background:#4455ff;box-shadow:0 0 10px #4455ff;}
+  .dot.thinking{background:#ffcc00;box-shadow:0 0 10px #ffcc00;animation:blink 0.8s infinite;}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+
+  /* GRID */
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%; }
+
+  .card {
+    background:#00d4ff07;
+    border:1px solid #00d4ff1a;
+    border-radius:12px;
+    padding:14px;
+    transition:border-color 0.3s;
+  }
+  .card:hover{border-color:#00d4ff44;}
+  .card-title {
+    font-family:'Orbitron',monospace;
+    font-size:0.55rem;
+    letter-spacing:0.2em;
+    color:#00d4ff55;
+    margin-bottom:10px;
+    display:flex;align-items:center;gap:6px;
+  }
+  .card-title::before{content:'';display:inline-block;width:16px;height:1px;background:#00d4ff33;}
+
+  .full { grid-column:span 2; }
+
+  /* WEATHER */
+  #weather-display { display:flex;align-items:center;gap:14px;flex-wrap:wrap; }
+  .w-icon{font-size:2.4rem;}
+  .w-temp{font-family:'Orbitron',monospace;font-size:1.9rem;color:var(--blue);text-shadow:var(--glow);}
+  .w-info{font-size:0.82rem;color:#00d4ffaa;line-height:1.7;}
+  .w-update{font-size:0.65rem;color:#00d4ff44;margin-top:4px;}
+
+  /* CLOCK */
+  #clock{font-family:'Orbitron',monospace;font-size:1.7rem;color:var(--blue);text-shadow:var(--glow);}
+  #date-hi{font-size:0.78rem;color:#00d4ff88;margin-top:3px;}
+
+  /* ROUTINE */
+  .routine-list{list-style:none;display:flex;flex-direction:column;gap:5px;}
+  .r-item{
+    display:flex;align-items:center;gap:8px;
+    font-size:0.82rem;padding:5px 0;
+    border-bottom:1px solid #00d4ff0d;
+    color:#00d4ffaa;transition:all 0.3s;
+  }
+  .r-item .rtime{font-family:'Orbitron',monospace;font-size:0.65rem;color:var(--blue);min-width:48px;}
+  .r-item.done{opacity:0.35;text-decoration:line-through;}
+  .r-item.now{color:#00ff88;font-weight:600;}
+  .r-item.now .rtime{color:#00ff88;text-shadow:0 0 8px #00ff88;}
+  .r-item.alarm-item{color:var(--orange);}
+  .r-item.alarm-item .rtime{color:var(--orange);}
+
+  /* ALARMS */
+  .alarm-list{display:flex;flex-direction:column;gap:6px;}
+  .alarm-tag{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:6px 10px;
+    background:#ff990010;
+    border:1px solid #ff990033;
+    border-radius:8px;
+    font-size:0.82rem;
+    color:var(--orange);
+  }
+  .alarm-tag .del-btn{
+    background:none;border:none;cursor:pointer;
+    color:#ff444488;font-size:1rem;transition:color 0.2s;
+  }
+  .alarm-tag .del-btn:hover{color:#ff4444;}
+  .no-alarm{font-size:0.8rem;color:#00d4ff33;font-style:italic;}
+
+  /* FEATURES */
+  .feature-list{display:flex;flex-wrap:wrap;gap:6px;}
+  .feat-tag{
+    padding:4px 10px;
+    background:#00ff8808;
+    border:1px solid #00ff8833;
+    border-radius:20px;
+    font-size:0.72rem;
+    color:var(--green);
+  }
+
+  /* CHAT */
+  .chat-box{width:100%;background:#00d4ff04;border:1px solid #00d4ff1a;border-radius:12px;overflow:hidden;}
+  .chat-head{
+    padding:10px 14px;
+    border-bottom:1px solid #00d4ff0d;
+    font-family:'Orbitron',monospace;
+    font-size:0.58rem;letter-spacing:0.2em;color:#00d4ff55;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .chat-msgs{
+    height:300px;overflow-y:auto;
+    padding:14px;display:flex;flex-direction:column;gap:10px;
+    scrollbar-width:thin;scrollbar-color:#00d4ff22 transparent;
+  }
+  .chat-msgs::-webkit-scrollbar{width:3px;}
+  .chat-msgs::-webkit-scrollbar-thumb{background:#00d4ff22;border-radius:2px;}
+
+  .msg{max-width:88%;padding:9px 13px;border-radius:8px;font-size:0.88rem;line-height:1.55;animation:fadeUp 0.3s ease;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .msg.user{align-self:flex-end;background:#00d4ff12;border:1px solid #00d4ff2a;color:#00d4ff;}
+  .msg.jarvis{align-self:flex-start;background:#ffffff07;border:1px solid #ffffff11;color:#cceeff;}
+  .msg.jarvis .sndr{font-family:'Orbitron',monospace;font-size:0.55rem;color:var(--blue);letter-spacing:0.1em;margin-bottom:3px;}
+  .msg.system{align-self:center;background:#00ff8808;border:1px solid #00ff8822;color:var(--green);font-size:0.78rem;border-radius:20px;padding:5px 14px;}
+
+  .typing-dots{display:flex;gap:4px;padding:3px 0;}
+  .typing-dots span{width:5px;height:5px;border-radius:50%;background:var(--blue);animation:td 1.2s ease-in-out infinite;}
+  .typing-dots span:nth-child(2){animation-delay:0.2s;}
+  .typing-dots span:nth-child(3){animation-delay:0.4s;}
+  @keyframes td{0%,100%{opacity:0.2;transform:translateY(0)}50%{opacity:1;transform:translateY(-4px)}}
+
+  /* INPUT */
+  .chat-input-row{padding:10px 14px;border-top:1px solid #00d4ff0d;display:flex;gap:8px;align-items:center;}
+  .chat-in{
+    flex:1;background:transparent;border:1px solid #00d4ff2a;
+    border-radius:8px;padding:9px 12px;
+    color:var(--blue);font-family:'Rajdhani',sans-serif;font-size:0.92rem;outline:none;
+    transition:border-color 0.3s;
+  }
+  .chat-in::placeholder{color:#00d4ff33;}
+  .chat-in:focus{border-color:#00d4ff77;}
+  .btn{
+    background:transparent;border:1px solid #00d4ff44;color:var(--blue);
+    padding:9px 14px;border-radius:8px;cursor:pointer;
+    font-family:'Orbitron',monospace;font-size:0.7rem;letter-spacing:0.08em;
+    transition:all 0.2s;white-space:nowrap;
+  }
+  .btn:hover{background:#00d4ff18;border-color:var(--blue);box-shadow:var(--glow);}
+  .btn:active{transform:scale(0.96);}
+  .btn.mic{font-size:1rem;padding:9px 12px;}
+  .btn.mic.rec{background:#ff660018;border-color:#ff6600;color:#ff6600;animation:blink 0.5s infinite;}
+
+  .hint{font-size:0.7rem;color:#00d4ff33;letter-spacing:0.08em;text-align:center;padding-bottom:8px;}
+
+  /* ALARM RING OVERLAY */
+  .alarm-overlay{
+    display:none;position:fixed;inset:0;z-index:999;
+    background:#000000cc;
+    align-items:center;justify-content:center;
+    flex-direction:column;gap:20px;
+  }
+  .alarm-overlay.show{display:flex;}
+  .alarm-box{
+    background:#010810;border:2px solid var(--orange);border-radius:16px;
+    padding:32px 40px;text-align:center;
+    box-shadow:0 0 60px #ff990066;animation:alarmPulse 0.8s ease-in-out infinite;
+  }
+  @keyframes alarmPulse{0%,100%{box-shadow:0 0 40px #ff990066}50%{box-shadow:0 0 80px #ff9900aa}}
+  .alarm-box h2{font-family:'Orbitron',monospace;font-size:1.5rem;color:var(--orange);margin-bottom:8px;}
+  .alarm-box p{font-size:1.1rem;color:#ffcc88;margin-bottom:20px;}
+  .alarm-dismiss{
+    background:var(--orange);border:none;color:#000;
+    padding:12px 30px;border-radius:8px;cursor:pointer;
+    font-family:'Orbitron',monospace;font-size:0.85rem;font-weight:700;
+    transition:transform 0.2s;
+  }
+  .alarm-dismiss:hover{transform:scale(1.05);}
+
+  @media(max-width:500px){
+    .header h1{font-size:2.2rem;}
+    .grid{grid-template-columns:1fr;}
+    .full{grid-column:span 1;}
+    .ring-wrap{width:130px;height:130px;}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>JARVIS</h1>
+    <div class="sub">BOSS EDITION v2.0 — आपकी सेवा में</div>
+  </div>
+
+  <!-- Ring -->
+  <div class="ring-wrap">
+    <svg class="ring-svg" viewBox="0 0 160 160">
+      <circle cx="80" cy="80" r="73" fill="none" stroke="#00d4ff1a" stroke-width="1"/>
+      <circle cx="80" cy="80" r="73" fill="none" stroke="#00d4ff" stroke-width="1.5"
+        stroke-dasharray="70 389" stroke-linecap="round"/>
+      <circle cx="80" cy="80" r="73" fill="none" stroke="#00d4ff55" stroke-width="1"
+        stroke-dasharray="15 444" stroke-dashoffset="90" stroke-linecap="round"/>
+    </svg>
+    <svg class="ring-svg r2" viewBox="0 0 160 160">
+      <circle cx="80" cy="80" r="60" fill="none" stroke="#00d4ff0d" stroke-width="1"/>
+      <circle cx="80" cy="80" r="60" fill="none" stroke="#00d4ff77" stroke-width="1"
+        stroke-dasharray="35 342" stroke-linecap="round"/>
+    </svg>
+    <div class="ring-center">
+      <div class="ring-icon" id="ring-icon">🤖</div>
+      <div class="ring-label" id="ring-label">STANDBY</div>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar">
+    <div class="dot active" id="status-dot"></div>
+    <span id="status-label">जागिए Boss — JARVIS हाजिर है!</span>
+  </div>
+
+  <!-- Grid -->
+  <div class="grid">
+
+    <!-- Weather -->
+    <div class="card full">
+      <div class="card-title">🌤️ मौसम (हर घंटे अपडेट)</div>
+      <div id="weather-display"><div style="color:#00d4ff44;font-size:0.85rem;">📡 मौसम लोड हो रहा है...</div></div>
+      <div id="weather-update" class="w-update"></div>
+    </div>
+
+    <!-- Clock -->
+    <div class="card">
+      <div class="card-title">⏰ समय</div>
+      <div id="clock">--:--:--</div>
+      <div id="date-hi">--</div>
+    </div>
+
+    <!-- Alarms -->
+    <div class="card">
+      <div class="card-title">🔔 अलार्म</div>
+      <div class="alarm-list" id="alarm-list">
+        <div class="no-alarm">कोई अलार्म नहीं — बोलो "Jarvis 7 baje uthana"</div>
+      </div>
+    </div>
+
+    <!-- Routine -->
+    <div class="card full">
+      <div class="card-title">📅 आज का रूटीन</div>
+      <ul class="routine-list" id="routine-list"></ul>
+    </div>
+
+    <!-- Features -->
+    <div class="card full">
+      <div class="card-title">✨ नए Features (खुद जुड़ते हैं)</div>
+      <div class="feature-list" id="feature-list">
+        <span class="feat-tag">🎙️ Voice Input</span>
+        <span class="feat-tag">🔔 Smart Alarms</span>
+        <span class="feat-tag">🌤️ Live Weather</span>
+        <span class="feat-tag">📅 Routine Tracker</span>
+        <span class="feat-tag">🤖 AI Answers</span>
+        <span class="feat-tag">💤 Sleep Mode</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Chat -->
+  <div class="chat-box">
+    <div class="chat-head">
+      <span>⚡ JARVIS CHAT — Boss Edition</span>
+      <span id="chat-st" style="color:#00d4ff33">READY</span>
+    </div>
+    <div class="chat-msgs" id="chat-msgs">
+      <div class="msg jarvis">
+        <div class="sndr">JARVIS</div>
+        नमस्ते Boss! 🤖 मैं JARVIS हूं, आपकी सेवा में तैयार हूं।<br><br>
+        <b>"Jarvis"</b> → जगाओ &nbsp;|&nbsp; <b>"Jarvis so jao"</b> → सुलाओ<br>
+        <b>"Jarvis 7 baje uthana"</b> → अलार्म लगाओ<br>
+        <b>"mera routine"</b> → अपना रूटीन बताओ<br>
+        कोई भी सवाल पूछो — हमेशा जवाब दूंगा! 💪
+      </div>
+    </div>
+    <div class="chat-input-row">
+      <input class="chat-in" id="chat-in" type="text" placeholder="Boss, kuch poocho ya bolo...">
+      <button class="btn mic" id="mic-btn" title="Voice">🎙️</button>
+      <button class="btn" id="send-btn">SEND</button>
+    </div>
+  </div>
+
+  <div class="hint">💡 "Jarvis" बोलो → Yes Boss! &nbsp;|&nbsp; हर घंटे मौसम अपडेट होता है &nbsp;|&nbsp; रूटीन बोलकर set करो</div>
+
+</div>
+
+<!-- Alarm Overlay -->
+<div class="alarm-overlay" id="alarm-overlay">
+  <div class="alarm-box">
+    <h2>⏰ ALARM!</h2>
+    <p id="alarm-msg">Boss, उठ जाइए!</p>
+    <button class="alarm-dismiss" onclick="dismissAlarm()">ठीक है JARVIS, उठ गया!</button>
+  </div>
+</div>
+
+<script>
+// ============ STATE ============
+let jarvisActive = true;
+let alarms = JSON.parse(localStorage.getItem('jarvis_alarms') || '[]');
+let routine = JSON.parse(localStorage.getItem('jarvis_routine') || '[]');
+let features = JSON.parse(localStorage.getItem('jarvis_features') || '[]');
+let weatherData = null;
+let lastWeatherUpdate = null;
+let recognition = null;
+let isListening = false;
+let alarmCheckInterval = null;
+let weatherInterval = null;
+let conversationHistory = [];
+
+const defaultRoutine = [
+  {hour:6,min:0,label:'🌅 उठो & व्यायाम करो'},
+  {hour:7,min:0,label:'🍳 नाश्ता'},
+  {hour:8,min:0,label:'📚 पढ़ाई शुरू'},
+  {hour:13,min:0,label:'🍱 दोपहर का खाना'},
+  {hour:15,min:0,label:'☕ चाय का वक्त'},
+  {hour:18,min:0,label:'🏃 शाम की सैर'},
+  {hour:21,min:0,label:'🍽️ रात का खाना'},
+  {hour:22,min:0,label:'😴 सोने का वक्त'},
+];
+
+if (routine.length === 0) routine = [...defaultRoutine];
+
+const defaultFeatures = ['🎙️ Voice Input','🔔 Smart Alarms','🌤️ Live Weather','📅 Routine Tracker','🤖 AI Answers','💤 Sleep Mode'];
+if (features.length === 0) features = [...defaultFeatures];
+
+// ============ SPEECH SYNTHESIS ============
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'hi-IN';
+  utter.rate = 0.95;
+  utter.pitch = 1.0;
+  utter.volume = 1.0;
+  // Try Hindi voice
+  const voices = window.speechSynthesis.getVoices();
+  const hiVoice = voices.find(v => v.lang === 'hi-IN') || voices.find(v => v.lang.startsWith('hi'));
+  if (hiVoice) utter.voice = hiVoice;
+  window.speechSynthesis.speak(utter);
+}
+
+// Wait for voices to load
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = () => {};
+}
+
+// ============ CLOCK ============
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  const s = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clock').textContent = `${h}:${m}:${s}`;
+  const days = ['रविवार','सोमवार','मंगलवार','बुधवार','गुरुवार','शुक्रवार','शनिवार'];
+  const months = ['जनवरी','फरवरी','मार्च','अप्रैल','मई','जून','जुलाई','अगस्त','सितंबर','अक्टूबर','नवंबर','दिसंबर'];
+  document.getElementById('date-hi').textContent =
+    `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+  updateRoutineHighlight(now);
+  checkAlarms(now);
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ============ ROUTINE ============
+function renderRoutine() {
+  const now = new Date();
+  const list = document.getElementById('routine-list');
+  list.innerHTML = '';
+  const sorted = [...routine].sort((a,b)=> a.hour*60+a.min - (b.hour*60+b.min));
+  sorted.forEach(item => {
+    const li = document.createElement('li');
+    li.className = 'r-item';
+    li.dataset.hour = item.hour;
+    li.dataset.min = item.min || 0;
+    const timeStr = `${String(item.hour).padStart(2,'0')}:${String(item.min||0).padStart(2,'0')}`;
+    li.innerHTML = `<span class="rtime">${timeStr}</span>${item.label}`;
+    list.appendChild(li);
+  });
+  updateRoutineHighlight(now);
+}
+
+function updateRoutineHighlight(now) {
+  const curMins = now.getHours()*60 + now.getMinutes();
+  document.querySelectorAll('.r-item').forEach(item => {
+    const h = parseInt(item.dataset.hour);
+    const mn = parseInt(item.dataset.min||0);
+    const itemMins = h*60+mn;
+    item.classList.remove('done','now');
+    if (itemMins < curMins) item.classList.add('done');
+    else if (itemMins === curMins || (itemMins > curMins && itemMins <= curMins+60)) item.classList.add('now');
+  });
+}
+
+renderRoutine();
+
+// ============ ALARMS ============
+function saveAlarms() { localStorage.setItem('jarvis_alarms', JSON.stringify(alarms)); }
+
+function renderAlarms() {
+  const el = document.getElementById('alarm-list');
+  if (alarms.length === 0) {
+    el.innerHTML = '<div class="no-alarm">कोई अलार्म नहीं — बोलो "Jarvis 7 baje uthana"</div>';
+    return;
+  }
+  el.innerHTML = '';
+  alarms.forEach((al, i) => {
+    const div = document.createElement('div');
+    div.className = 'alarm-tag';
+    div.innerHTML = `<span>⏰ ${String(al.hour).padStart(2,'0')}:${String(al.min).padStart(2,'0')} — ${al.label}</span>
+      <button class="del-btn" onclick="deleteAlarm(${i})">✕</button>`;
+    el.appendChild(div);
+  });
+}
+
+function deleteAlarm(i) {
+  alarms.splice(i, 1);
+  saveAlarms();
+  renderAlarms();
+  addMsg('अलार्म हटा दिया। ✅', 'system');
+}
+
+function checkAlarms(now) {
+  const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+  if (s !== 0) return;
+  alarms.forEach((al, i) => {
+    if (al.hour === h && al.min === m && !al.fired) {
+      al.fired = true;
+      saveAlarms();
+      triggerAlarm(al);
+    }
+  });
+  // Reset fired next day
+  if (h === 0 && m === 0) {
+    alarms.forEach(al => al.fired = false);
+    saveAlarms();
+  }
+}
+
+function triggerAlarm(al) {
+  const overlay = document.getElementById('alarm-overlay');
+  const msg = document.getElementById('alarm-msg');
+  msg.textContent = al.label;
+  overlay.classList.add('show');
+  const wakeMsg = `${al.label} Boss! उठ जाइए, ${String(al.hour).padStart(2,'0')} बज गए!`;
+  speak(wakeMsg);
+  addMsg(`🔔 ${wakeMsg}`, 'jarvis');
+}
+
+function dismissAlarm() {
+  document.getElementById('alarm-overlay').classList.remove('show');
+  speak('ठीक है Boss! अच्छा दिन हो!');
+}
+
+renderAlarms();
+
+// ============ FEATURES ============
+function saveFeatures() { localStorage.setItem('jarvis_features', JSON.stringify(features)); }
+
+function renderFeatures() {
+  const el = document.getElementById('feature-list');
+  el.innerHTML = features.map(f => `<span class="feat-tag">${f}</span>`).join('');
+}
+
+function addFeature(feat) {
+  if (!features.includes(feat)) {
+    features.push(feat);
+    saveFeatures();
+    renderFeatures();
+  }
+}
+
+renderFeatures();
+
+// ============ WEATHER ============
+async function fetchWeather() {
+  try {
+    navigator.geolocation.getCurrentPosition(async pos => {
+      await loadWeather(pos.coords.latitude, pos.coords.longitude);
+    }, async () => {
+      await loadWeather(20.5937, 78.9629); // India default
+    });
+  } catch(e) {}
+}
+
+async function loadWeather(lat, lon) {
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m,apparent_temperature&timezone=auto`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const cw = data.current_weather;
+    if (!cw) return;
+    const temp = Math.round(cw.temperature);
+    const wind = Math.round(cw.windspeed);
+    const wc = cw.weathercode;
+    let icon='☀️', desc='साफ मौसम';
+    if(wc>=1&&wc<=3){icon='⛅';desc='थोड़े बादल';}
+    if(wc>=45&&wc<=48){icon='🌫️';desc='कोहरा';}
+    if(wc>=51&&wc<=67){icon='🌧️';desc='बारिश';}
+    if(wc>=71&&wc<=77){icon='❄️';desc='बर्फबारी';}
+    if(wc>=80&&wc<=82){icon='🌦️';desc='हल्की बारिश';}
+    if(wc>=95){icon='⛈️';desc='तूफान';}
+    weatherData = {temp, wind, icon, desc, lat, lon};
+    lastWeatherUpdate = new Date();
+    document.getElementById('weather-display').innerHTML = `
+      <div class="weather-main" style="display:flex;align-items:center;gap:12px">
+        <div class="w-icon">${icon}</div>
+        <div class="w-temp">${temp}°C</div>
+      </div>
+      <div class="w-info">
+        <div>${desc}</div>
+        <div>💨 हवा: ${wind} km/h</div>
+        <div>📍 आपकी लोकेशन</div>
+      </div>`;
+    document.getElementById('weather-update').textContent =
+      `आखिरी अपडेट: ${lastWeatherUpdate.toLocaleTimeString('hi-IN')} — अगला: 1 घंटे में`;
+  } catch(e) {}
+}
+
+fetchWeather();
+// हर घंटे मौसम अपडेट
+setInterval(fetchWeather, 60 * 60 * 1000);
+
+// ============ STATUS ============
+function setStatus(mode) {
+  const dot = document.getElementById('status-dot');
+  const label = document.getElementById('status-label');
+  const icon = document.getElementById('ring-icon');
+  const rl = document.getElementById('ring-label');
+  dot.className = 'dot';
+  if (mode==='active'){
+    dot.classList.add('active');
+    label.textContent='JARVIS सक्रिय — Boss का इंतज़ार';
+    icon.textContent='🤖'; rl.textContent='ACTIVE'; jarvisActive=true;
+  } else if (mode==='sleeping'){
+    dot.classList.add('sleeping');
+    label.textContent='सो रहा हूं — "Jarvis" कहकर जगाओ';
+    icon.textContent='💤'; rl.textContent='SLEEP'; jarvisActive=false;
+  } else if (mode==='thinking'){
+    dot.classList.add('thinking');
+    label.textContent='सोच रहा हूं...';
+    icon.textContent='⚡'; rl.textContent='THINK';
+  } else if (mode==='listening'){
+    dot.classList.add('listening');
+    label.textContent='सुन रहा हूं Boss...';
+    icon.textContent='👂'; rl.textContent='LISTEN';
+  } else if (mode==='speaking'){
+    dot.classList.add('active');
+    label.textContent='बोल रहा हूं...';
+    icon.textContent='🔊'; rl.textContent='SPEAK';
+  }
+}
+setStatus('active');
+
+// ============ CHAT ============
+function addMsg(text, type) {
+  const box = document.getElementById('chat-msgs');
+  const div = document.createElement('div');
+  div.className = `msg ${type}`;
+  if (type==='jarvis') div.innerHTML=`<div class="sndr">JARVIS</div>${text}`;
+  else div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  return div;
+}
+
+function addTyping() {
+  const box = document.getElementById('chat-msgs');
+  const div = document.createElement('div');
+  div.className='msg jarvis'; div.id='typing-ind';
+  div.innerHTML=`<div class="sndr">JARVIS</div><div class="typing-dots"><span></span><span></span><span></span></div>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+function removeTyping() { const t=document.getElementById('typing-ind'); if(t)t.remove(); }
+
+// ============ PARSE ALARM FROM TEXT ============
+function parseAlarm(text) {
+  const lower = text.toLowerCase();
+  // Pattern: "X baje uthana/jagana/reminder"
+  const patterns = [
+    /(\d{1,2})\s*(?:baje|baj|:00|bajkar)\s*(?:subah|sham|raat|dopahar)?\s*(?:uthana|uthao|jagana|jagao|reminder|alarm|yaad)/i,
+    /(\d{1,2}):(\d{2})\s*(?:baje|baj)?\s*(?:uthana|uthao|jagana|jagao|reminder|alarm)/i,
+    /subah\s*(\d{1,2})\s*baj/i,
+    /raat\s*(\d{1,2})\s*baj/i,
+    /sham\s*(\d{1,2})\s*baj/i,
+  ];
+
+  for (const p of patterns) {
+    const m = lower.match(p);
+    if (m) {
+      let hour = parseInt(m[1]);
+      let min = m[2] ? parseInt(m[2]) : 0;
+      // AM/PM context
+      if (lower.includes('subah') && hour >= 1 && hour <= 11) {}
+      else if (lower.includes('sham') && hour <= 7) hour += 12;
+      else if (lower.includes('raat') && hour <= 11) hour += 12;
+      else if (lower.includes('dopahar') && hour <= 5) hour += 12;
+      if (hour >= 24) hour = hour % 24;
+      return { hour, min, label: `Boss, ${String(hour).padStart(2,'0')}:${String(min).padStart(2,'0')} baj gaye — uth jaiye! 🔔` };
+    }
+  }
+  return null;
+}
+
+// ============ PARSE ROUTINE FROM TEXT ============
+function parseRoutineItem(text) {
+  const lower = text.toLowerCase();
+  const match = lower.match(/(\d{1,2})\s*(?::(\d{2}))?\s*baj\w*\s*(.+)/i);
+  if (!match) return null;
+  let hour = parseInt(match[1]);
+  const min = match[2] ? parseInt(match[2]) : 0;
+  let label = match[3].trim();
+  if (lower.includes('subah') && hour <= 11) {}
+  else if (lower.includes('sham') && hour <= 7) hour += 12;
+  else if (lower.includes('raat') && hour <= 11) hour += 12;
+  label = label.charAt(0).toUpperCase() + label.slice(1);
+  return { hour, min, label: `📌 ${label}` };
+}
+
+// ============ PROCESS INPUT ============
+async function processInput(userText) {
+  const lower = userText.toLowerCase().trim();
+
+  // Wake word
+  const isWake = ['jarvis','जार्विस'].some(w => lower === w || lower.startsWith(w+' ') || lower.startsWith(w+','));
+  const isSleep = ['so jao','so ja','bye jarvis','band ho','सो जाओ'].some(w => lower.includes(w));
+
+  if (isSleep) {
+    setStatus('sleeping');
+    const msg = 'ठीक है Boss, सो रहा हूं। ज़रूरत हो तो "Jarvis" कहकर जगाइए। 💤';
+    addMsg(msg, 'jarvis');
+    speak(msg);
+    return;
+  }
+
+  if (!jarvisActive) {
+    if (isWake) {
+      setStatus('active');
+      const msg = 'Yes Boss! जाग गया, बताइए क्या चाहिए? 🤖⚡';
+      addMsg(msg, 'jarvis');
+      speak(msg);
+    } else {
+      addMsg('सो रहा हूं Boss... "Jarvis" कहकर जगाइए। 💤', 'jarvis');
+    }
+    return;
+  }
+
+  // Just "Jarvis" alone → greet
+  if (isWake && lower.length <= 8) {
+    const msg = 'Yes Boss! 🤖 बताइए, क्या सेवा करूं?';
+    addMsg(msg, 'jarvis');
+    speak(msg);
+    return;
+  }
+
+  // Alarm detection
+  const alarmData = parseAlarm(lower);
+  if (alarmData || lower.includes('uthana') || lower.includes('alarm') || lower.includes('reminder')) {
+    if (alarmData) {
+      alarms.push(alarmData);
+      saveAlarms();
+      renderAlarms();
+      const msg = `बिल्कुल Boss! ${String(alarmData.hour).padStart(2,'0')}:${String(alarmData.min).padStart(2,'0')} बजे अलार्म लगा दिया। उस वक्त जगा दूंगा! ⏰`;
+      addMsg(msg, 'jarvis');
+      speak(msg);
+      addFeature('⏰ Custom Alarms');
+      return;
+    }
+  }
+
+  // Routine set
+  if (lower.includes('routine') || lower.includes('रूटीन') || lower.includes('schedule set')) {
+    const ri = parseRoutineItem(lower);
+    if (ri) {
+      routine.push(ri);
+      localStorage.setItem('jarvis_routine', JSON.stringify(routine));
+      renderRoutine();
+      const msg = `रूटीन में जोड़ दिया: ${ri.hour}:${String(ri.min).padStart(2,'0')} — ${ri.label} ✅`;
+      addMsg(msg, 'jarvis');
+      speak(msg);
+      addFeature('📋 Custom Routine');
+      return;
+    }
+    // Show current routine
+    const msg = 'आपका रूटीन नीचे दिखाया है। बदलाव के लिए बोलिए जैसे — "8 baje yoga karna routine mein jodo"';
+    addMsg(msg, 'jarvis');
+    speak(msg);
+    return;
+  }
+
+  // Weather
+  if (lower.includes('mausam') || lower.includes('weather') || lower.includes('मौसम') || lower.includes('garmi') || lower.includes('barish')) {
+    if (weatherData) {
+      const msg = `Boss, अभी बाहर ${weatherData.temp}°C है। ${weatherData.icon} ${weatherData.desc}। हवा ${weatherData.wind} km/h चल रही है।`;
+      addMsg(msg, 'jarvis');
+      speak(msg);
+    } else {
+      addMsg('मौसम जानकारी लोड हो रही है Boss, थोड़ा इंतज़ार करें...', 'jarvis');
+      speak('मौसम लोड हो रहा है');
+      fetchWeather();
+    }
+    return;
+  }
+
+  // Time
+  if (lower.includes('time') || lower.includes('samay') || lower.includes('समय') || lower.includes('kitne baj')) {
+    const now = new Date();
+    const msg = `Boss, अभी ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} बज रहे हैं।`;
+    addMsg(msg, 'jarvis');
+    speak(msg);
+    return;
+  }
+
+  // AI Response
+  setStatus('thinking');
+  addTyping();
+  document.getElementById('chat-st').textContent = 'THINKING...';
+
+  try {
+    const now = new Date();
+    const sysPrompt = `You are JARVIS, a friendly personal AI assistant. Always respond in Hindi (Devanagari script). 
+Address the user as "Boss". Be warm, helpful, and concise.
+Current time: ${now.toLocaleTimeString('hi-IN')}
+Current date: ${now.toLocaleDateString('hi-IN')}
+${weatherData ? `Weather: ${weatherData.temp}°C, ${weatherData.desc}, wind ${weatherData.wind} km/h` : ''}
+User's routine: ${JSON.stringify(routine.map(r=>`${r.hour}:${String(r.min||0).padStart(2,'0')} - ${r.label}`))}
+Keep answers short and in Hindi. If asked a study question, explain clearly in Hindi. End replies with encouragement.`;
+
+    conversationHistory.push({role:'user', content: userText});
+    if (conversationHistory.length > 10) conversationHistory = conversationHistory.slice(-10);
+
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        model:"claude-sonnet-4-20250514",
+        max_tokens:1000,
+        system: sysPrompt,
+        messages: conversationHistory
+      })
+    });
+
+    const data = await res.json();
+    removeTyping();
+    setStatus('active');
+    document.getElementById('chat-st').textContent = 'READY';
+
+    const reply = data.content?.[0]?.text || 'माफ करना Boss, समझ नहीं आया। दोबारा पूछिए।';
+    conversationHistory.push({role:'assistant', content: reply});
+
+    addMsg(reply, 'jarvis');
+    setStatus('speaking');
+    speak(reply);
+    setTimeout(()=> setStatus('active'), 3000);
+
+    // Auto-feature detection
+    if (lower.includes('joke') || lower.includes('chutkula')) addFeature('😂 Jokes');
+    if (lower.includes('news') || lower.includes('khabar')) addFeature('📰 News Updates');
+    if (lower.includes('recipe') || lower.includes('khana')) addFeature('🍲 Recipes');
+    if (lower.includes('motivat') || lower.includes('hausla')) addFeature('💪 Motivation');
+    if (lower.includes('math') || lower.includes('calculate') || lower.includes('ganit')) addFeature('🔢 Math Helper');
+    if (lower.includes('english') || lower.includes('word')) addFeature('📖 English Help');
+    if (lower.includes('history') || lower.includes('itihas')) addFeature('🏛️ History Tutor');
+    if (lower.includes('science') || lower.includes('vigyan')) addFeature('🔬 Science Tutor');
+
+  } catch(e) {
+    removeTyping();
+    setStatus('active');
+    document.getElementById('chat-st').textContent = 'READY';
+    addMsg('माफ करना Boss, अभी जवाब नहीं दे पा रहा। थोड़ी देर में कोशिश करें। 🔧', 'jarvis');
+  }
+}
+
+// ============ SEND ============
+document.getElementById('send-btn').addEventListener('click', sendMsg);
+document.getElementById('chat-in').addEventListener('keydown', e => { if(e.key==='Enter') sendMsg(); });
+
+function sendMsg() {
+  const inp = document.getElementById('chat-in');
+  const text = inp.value.trim();
+  if (!text) return;
+  addMsg(text, 'user');
+  inp.value = '';
+  processInput(text);
+}
+
+// ============ VOICE ============
+const micBtn = document.getElementById('mic-btn');
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+if (SR) {
+  recognition = new SR();
+  recognition.lang = 'hi-IN';
+  recognition.interimResults = false;
+  recognition.continuous = false;
+
+  recognition.onstart = () => { isListening=true; setStatus('listening'); micBtn.classList.add('rec'); micBtn.textContent='🔴'; };
+  recognition.onresult = e => {
+    const t = e.results[0][0].transcript;
+    addMsg(t, 'user');
+    processInput(t);
+  };
+  recognition.onend = () => {
+    isListening=false; micBtn.classList.remove('rec'); micBtn.textContent='🎙️';
+    if(jarvisActive) setStatus('active'); else setStatus('sleeping');
+  };
+  recognition.onerror = () => {
+    isListening=false; micBtn.classList.remove('rec'); micBtn.textContent='🎙️';
+    if(jarvisActive) setStatus('active'); else setStatus('sleeping');
+  };
+
+  micBtn.addEventListener('click', ()=>{ if(isListening) recognition.stop(); else recognition.start(); });
+} else {
+  micBtn.style.opacity='0.4';
+  micBtn.title='Voice इस browser में नहीं चलेगा';
+}
+
+// Input focus status
+document.getElementById('chat-in').addEventListener('focus', ()=> document.getElementById('chat-st').textContent='TYPING...');
+document.getElementById('chat-in').addEventListener('blur', ()=> document.getElementById('chat-st').textContent='READY');
+
+// ============ BOOT GREETING ============
+setTimeout(() => {
+  const now = new Date();
+  const h = now.getHours();
+  let greet = h<12 ? 'सुप्रभात' : h<17 ? 'नमस्ते' : h<21 ? 'शुभ संध्या' : 'शुभ रात्रि';
+  const msg = `${greet} Boss! मैं JARVIS हूं, तैयार हूं। आज मैं आपकी क्या सेवा करूं? 🤖`;
+  speak(msg);
+}, 1500);
+
+</script>
+</body>
+</html>
